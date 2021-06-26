@@ -1,0 +1,97 @@
+service: car-washer-registration
+frameworkVersion: '2'
+
+plugins: 
+  - serverless-offline
+
+# custom:
+#   allowedHeaders:
+#     - Accept
+#     - Content-Type
+#     - Content-Length
+#     - Authorization
+#     - X-Amz-Date
+#     - X-Api-Key
+#     - X-Amz-Security-Token
+#     - X-Amz-User-Agent
+#     - app_user_id
+#     - app_user_name
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+  region: us-east-1
+  stage: dev
+  memorySize: 256
+  timeout: 10
+  endpointType: regional
+  environment:
+    CAR_WASHER_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action: 
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:PutItem
+        - dynamondb:DeleteItem
+      Resource: 
+        Fn::GetAtt:
+          - CarWasherTable
+          - Arn
+
+resources:
+  Resources:
+    CarWasherTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:provider.environment.CAR_WASHER_TABLE}
+        AttributeDefinitions:
+          - AttributeName: washerId
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: N
+        KeySchema:
+          - AttributeName: washerId
+            KeyType: HASH
+          - AttributeName: createdAt
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+functions:
+  add-washer:
+    handler: services/add-washer.handler
+    description: POST/washer-registration
+    events: 
+      - http: 
+          path: washer
+          method: post
+          cors: true
+          # cors:
+          #   origin: '*'
+          #   headers: ${self:custom.allowedHeaders}
+
+  washer-login:
+    handler: services/washer-login.handler
+    description: POST/washer-login
+    events: 
+      - http: 
+          path: washer-login
+          method: post
+          cors: true
+          # cors:
+          #   origin: '*'
+          #   headers: ${self:custom.allowedHeaders}
+
+    
+
+
