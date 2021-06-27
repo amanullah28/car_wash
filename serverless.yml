@@ -39,8 +39,7 @@ provider:
         - dynamodb:UpdateItem
         - dynamodb:DeleteItem
         - dynamodb:Query
-        - dynamodb:PutItem
-        - dynamondb:DeleteItem
+
       Resource: 
         Fn::GetAtt:
           - CarWasherTable
