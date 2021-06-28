@@ -1,3 +1,0 @@
-describe("car washer registration", ()=>{
-    
-})

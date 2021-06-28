@@ -1,97 +1,89 @@
-service: car-washer-registration
+service: car-wash
 frameworkVersion: '2'
-
-plugins: 
-  - serverless-offline
-
-# custom:
-#   allowedHeaders:
-#     - Accept
-#     - Content-Type
-#     - Content-Length
-#     - Authorization
-#     - X-Amz-Date
-#     - X-Api-Key
-#     - X-Amz-Security-Token
-#     - X-Amz-User-Agent
-#     - app_user_id
-#     - app_user_name
-
 provider:
   name: aws
   runtime: nodejs12.x
   lambdaHashingVersion: 20201221
-  region: us-east-1
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:DescribeTable
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - lambda:InvokeFunction
+          Resource:
+            - arn:aws:dynamodb:us-east-1:*:*
+            - arn:aws:lambda:us-east-1:*:*
   stage: dev
-  memorySize: 256
-  timeout: 10
-  endpointType: regional
+  region: us-east-1
   environment:
-    CAR_WASHER_TABLE: ${self:service}-${opt:stage, self:provider.stage}
-
-  iamRoleStatements:
-    - Effect: Allow
-      Action: 
-        - dynamodb:Query
-        - dynamodb:Scan
-        - dynamodb:GetItem
-        - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:DeleteItem
-        - dynamodb:Query
-        - dynamodb:PutItem
-        - dynamondb:DeleteItem
-      Resource: 
-        Fn::GetAtt:
-          - CarWasherTable
-          - Arn
-
+    JWT_SECRET: secretkey
+functions:
+  userSignup:
+    handler: handlers/customer.signup
+    events:
+      - http:
+          path: user/signup
+          method: POST
+          cors: true
+  login:
+    handler: handlers/customer.login
+    events:
+      - http:
+          path: user/login
+          method: POST
+  authorize:
+    handler: handlers/authorize.handler
+  updateProfile:
+    handler: handlers/customer.updateProfile
+    events:
+      - http:
+          path: profile
+          method: POST
+          authorizer: authorize
 resources:
   Resources:
-    CarWasherTable:
-      Type: AWS::DynamoDB::Table
-      DeletionPolicy: Retain
+    TodosTable:
+      Type: "AWS::DynamoDB::Table"
+      # DeletionPolicy: Retain
       Properties:
-        TableName: ${self:provider.environment.CAR_WASHER_TABLE}
         AttributeDefinitions:
-          - AttributeName: washerId
+          -
+            AttributeName: id
             AttributeType: S
-          - AttributeName: createdAt
-            AttributeType: N
         KeySchema:
-          - AttributeName: washerId
+          -
+            AttributeName: id
             KeyType: HASH
-          - AttributeName: createdAt
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: 'users'
+    authTokensTable:
+      Type: "AWS::DynamoDB::Table"
+      # DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: userId
+            AttributeType: S
+          - 
+            AttributeName: token
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: token
+            KeyType: HASH
+          -
+            AttributeName: userId
             KeyType: RANGE
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
-
-functions:
-  add-washer:
-    handler: services/add-washer.handler
-    description: POST/washer-registration
-    events: 
-      - http: 
-          path: washer
-          method: post
-          cors: true
-          # cors:
-          #   origin: '*'
-          #   headers: ${self:custom.allowedHeaders}
-
-  washer-login:
-    handler: services/washer-login.handler
-    description: POST/washer-login
-    events: 
-      - http: 
-          path: washer-login
-          method: post
-          cors: true
-          # cors:
-          #   origin: '*'
-          #   headers: ${self:custom.allowedHeaders}
-
-    
-
-
+        TableName: 'auth-tokens'
