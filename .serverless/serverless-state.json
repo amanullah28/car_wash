@@ -1,8 +1,8 @@
 {
   "service": {
-    "service": "car-washer-registration",
+    "service": "car-washer",
     "serviceObject": {
-      "name": "car-washer-registration"
+      "name": "car-washer"
     },
     "provider": {
       "name": "aws",
@@ -14,8 +14,28 @@
       "timeout": 10,
       "endpointType": "regional",
       "environment": {
-        "CAR_WASHER_TABLE": "car-washer-registration-dev"
+        "USER_TABLE": "user"
       },
+      "iamRoleStatements": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "dynamodb:Query",
+            "dynamodb:Scan",
+            "dynamodb:GetItem",
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:DeleteItem",
+            "dynamodb:Query"
+          ],
+          "Resource": {
+            "Fn::GetAtt": [
+              "UserTable",
+              "Arn"
+            ]
+          }
+        }
+      ],
       "versionFunctions": true,
       "compiledCloudFormationTemplate": {
         "AWSTemplateFormatVersion": "2010-09-09",
@@ -90,14 +110,14 @@
               }
             }
           },
-          "CarWasherTable": {
+          "UserTable": {
             "Type": "AWS::DynamoDB::Table",
             "DeletionPolicy": "Retain",
             "Properties": {
-              "TableName": "car-washer-registration-dev",
+              "TableName": "user",
               "AttributeDefinitions": [
                 {
-                  "AttributeName": "washerId",
+                  "AttributeName": "userId",
                   "AttributeType": "S"
                 },
                 {
@@ -107,7 +127,7 @@
               ],
               "KeySchema": [
                 {
-                  "AttributeName": "washerId",
+                  "AttributeName": "userId",
                   "KeyType": "HASH"
                 },
                 {
@@ -128,7 +148,7 @@
               "Ref": "ServerlessDeploymentBucket"
             },
             "Export": {
-              "Name": "sls-car-washer-registration-dev-ServerlessDeploymentBucketName"
+              "Name": "sls-car-washer-dev-ServerlessDeploymentBucketName"
             }
           }
         }
@@ -216,18 +236,21 @@
         }
       }
     },
+    "plugins": [
+      "serverless-offline"
+    ],
     "pluginsData": {},
     "functions": {},
     "resources": {
       "Resources": {
-        "CarWasherTable": {
+        "UserTable": {
           "Type": "AWS::DynamoDB::Table",
           "DeletionPolicy": "Retain",
           "Properties": {
-            "TableName": "car-washer-registration-dev",
+            "TableName": "user",
             "AttributeDefinitions": [
               {
-                "AttributeName": "washerId",
+                "AttributeName": "userId",
                 "AttributeType": "S"
               },
               {
@@ -237,7 +260,7 @@
             ],
             "KeySchema": [
               {
-                "AttributeName": "washerId",
+                "AttributeName": "userId",
                 "KeyType": "HASH"
               },
               {
@@ -261,6 +284,9 @@
         "$ref": "$[\"service\"][\"serviceObject\"]"
       },
       "frameworkVersion": "2",
+      "plugins": {
+        "$ref": "$[\"service\"][\"plugins\"]"
+      },
       "provider": {
         "$ref": "$[\"service\"][\"provider\"]"
       },
@@ -272,7 +298,7 @@
     "isDashboardMonitoringPreconfigured": false
   },
   "package": {
-    "artifactDirectoryName": "serverless/car-washer-registration/dev/1624697829688-2021-06-26T08:57:09.688Z",
+    "artifactDirectoryName": "serverless/car-washer/dev/1624855393640-2021-06-28T04:43:13.640Z",
     "artifact": ""
   }
 }

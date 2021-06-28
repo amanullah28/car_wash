@@ -1,4 +1,4 @@
-service: car-washer-registration
+service: car-washer
 frameworkVersion: '2'
 
 plugins: 
@@ -27,7 +27,8 @@ provider:
   timeout: 10
   endpointType: regional
   environment:
-    CAR_WASHER_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+    USER_TABLE: user
+    # USER_TABLE: ${self:service}-${opt:stage, self:provider.stage}
 
   iamRoleStatements:
     - Effect: Allow
@@ -42,23 +43,23 @@ provider:
 
       Resource: 
         Fn::GetAtt:
-          - CarWasherTable
+          - UserTable
           - Arn
 
 resources:
   Resources:
-    CarWasherTable:
+    UserTable:
       Type: AWS::DynamoDB::Table
       DeletionPolicy: Retain
       Properties:
-        TableName: ${self:provider.environment.CAR_WASHER_TABLE}
+        TableName: ${self:provider.environment.USER_TABLE}
         AttributeDefinitions:
-          - AttributeName: washerId
+          - AttributeName: userId
             AttributeType: S
           - AttributeName: createdAt
             AttributeType: N
         KeySchema:
-          - AttributeName: washerId
+          - AttributeName: userId
             KeyType: HASH
           - AttributeName: createdAt
             KeyType: RANGE

@@ -2,7 +2,7 @@ const util = require('../helper/util');
 const AWS = require('aws-sdk');
 AWS.config.update({region: 'us-east-1'});
 const DocClient = new AWS.DynamoDB.DocumentClient();
-const table = process.env.CAR_WASHER_TABLE;
+const table = process.env.USER_TABLE;
 const { v4: uuidv4 } = require('uuid');
 const uType = require('../helper/userType');
 const bcrypt = require('bcrypt');
@@ -30,7 +30,7 @@ exports.handler = async (event, ctxt)=>{
         let params = {
             TableName: table,
             Item: {
-                washerId: uuidv4(),
+                userId: uuidv4(),
                 email: input.email,
                 password: hashPassword,
                 name: input.name,

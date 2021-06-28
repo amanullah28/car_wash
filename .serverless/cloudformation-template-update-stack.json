@@ -71,14 +71,14 @@
         }
       }
     },
-    "CarWasherTable": {
+    "UserTable": {
       "Type": "AWS::DynamoDB::Table",
       "DeletionPolicy": "Retain",
       "Properties": {
-        "TableName": "car-washer-registration-dev",
+        "TableName": "user",
         "AttributeDefinitions": [
           {
-            "AttributeName": "washerId",
+            "AttributeName": "userId",
             "AttributeType": "S"
           },
           {
@@ -88,7 +88,7 @@
         ],
         "KeySchema": [
           {
-            "AttributeName": "washerId",
+            "AttributeName": "userId",
             "KeyType": "HASH"
           },
           {
@@ -109,7 +109,7 @@
         "Ref": "ServerlessDeploymentBucket"
       },
       "Export": {
-        "Name": "sls-car-washer-registration-dev-ServerlessDeploymentBucketName"
+        "Name": "sls-car-washer-dev-ServerlessDeploymentBucketName"
       }
     }
   }
