@@ -14,7 +14,9 @@
       "timeout": 10,
       "endpointType": "regional",
       "environment": {
-        "USER_TABLE": "user"
+        "USER_TABLE": "user",
+        "IMAGE_BUCKET": "car-washer",
+        "JWT_SECRET": "secretttt"
       },
       "iamRoleStatements": [
         {
@@ -26,14 +28,14 @@
             "dynamodb:PutItem",
             "dynamodb:UpdateItem",
             "dynamodb:DeleteItem",
-            "dynamodb:Query"
+            "dynamodb:Query",
+            "s3:*"
           ],
-          "Resource": {
-            "Fn::GetAtt": [
-              "UserTable",
-              "Arn"
-            ]
-          }
+          "Resource": [
+            "arn:aws:dynamodb:us-east-1:*:*",
+            "arn:aws:lambda:us-east-1:*:*",
+            "arn:aws:s3:::car-washer/*"
+          ]
         }
       ],
       "versionFunctions": true,
@@ -110,6 +112,821 @@
               }
             }
           },
+          "AddDashwasherLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/car-washer-dev-add-washer"
+            }
+          },
+          "WasherDashloginLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/car-washer-dev-washer-login"
+            }
+          },
+          "AuthorizerFnLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/car-washer-dev-authorizerFn"
+            }
+          },
+          "ImageDashuploadLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/car-washer-dev-image-upload"
+            }
+          },
+          "IamRoleLambdaExecution": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": [
+                        "lambda.amazonaws.com"
+                      ]
+                    },
+                    "Action": [
+                      "sts:AssumeRole"
+                    ]
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": {
+                    "Fn::Join": [
+                      "-",
+                      [
+                        "car-washer",
+                        "dev",
+                        "lambda"
+                      ]
+                    ]
+                  },
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:CreateLogStream",
+                          "logs:CreateLogGroup"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/car-washer-dev*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:PutLogEvents"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/car-washer-dev*:*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iamRoleStatements\"][0]"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "Path": "/",
+              "RoleName": {
+                "Fn::Join": [
+                  "-",
+                  [
+                    "car-washer",
+                    "dev",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    "lambdaRole"
+                  ]
+                ]
+              }
+            }
+          },
+          "AddDashwasherLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/car-washer/dev/1624949008582-2021-06-29T06:43:28.582Z/car-washer.zip"
+              },
+              "Handler": "services/add-washer.handler",
+              "Runtime": "nodejs12.x",
+              "FunctionName": "car-washer-dev-add-washer",
+              "MemorySize": 256,
+              "Timeout": 10,
+              "Description": "POST/washer-registration",
+              "Environment": {
+                "Variables": {
+                  "USER_TABLE": "user",
+                  "IMAGE_BUCKET": "car-washer",
+                  "JWT_SECRET": "secretttt"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AddDashwasherLogGroup"
+            ]
+          },
+          "WasherDashloginLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/car-washer/dev/1624949008582-2021-06-29T06:43:28.582Z/car-washer.zip"
+              },
+              "Handler": "services/washer-login.handler",
+              "Runtime": "nodejs12.x",
+              "FunctionName": "car-washer-dev-washer-login",
+              "MemorySize": 256,
+              "Timeout": 10,
+              "Description": "POST/washer-login",
+              "Environment": {
+                "Variables": {
+                  "USER_TABLE": "user",
+                  "IMAGE_BUCKET": "car-washer",
+                  "JWT_SECRET": "secretttt"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "WasherDashloginLogGroup"
+            ]
+          },
+          "AuthorizerFnLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/car-washer/dev/1624949008582-2021-06-29T06:43:28.582Z/car-washer.zip"
+              },
+              "Handler": "services/jwt-authorizer.handler",
+              "Runtime": "nodejs12.x",
+              "FunctionName": "car-washer-dev-authorizerFn",
+              "MemorySize": 256,
+              "Timeout": 10,
+              "Environment": {
+                "Variables": {
+                  "USER_TABLE": "user",
+                  "IMAGE_BUCKET": "car-washer",
+                  "JWT_SECRET": "secretttt"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AuthorizerFnLogGroup"
+            ]
+          },
+          "ImageDashuploadLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/car-washer/dev/1624949008582-2021-06-29T06:43:28.582Z/car-washer.zip"
+              },
+              "Handler": "services/image-upload.handler",
+              "Runtime": "nodejs12.x",
+              "FunctionName": "car-washer-dev-image-upload",
+              "MemorySize": 256,
+              "Timeout": 10,
+              "Description": "POST/image-upload",
+              "Environment": {
+                "Variables": {
+                  "USER_TABLE": "user",
+                  "IMAGE_BUCKET": "car-washer",
+                  "JWT_SECRET": "secretttt"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "ImageDashuploadLogGroup"
+            ]
+          },
+          "AddDashwasherLambdaVersionAXS5V79AKgQ5lYBgYvlephdqsJZdPbSiZDwf7Ts": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "AddDashwasherLambdaFunction"
+              },
+              "CodeSha256": "exKDHdbgqOk+QsE3m0tK1I7uj1r1+DnbmRrI3LHGnVw=",
+              "Description": "POST/washer-registration"
+            }
+          },
+          "WasherDashloginLambdaVersionz7Az4KIZtcQW01xzLGF6DM5NwUCHlUy34BDaGwaevA": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "WasherDashloginLambdaFunction"
+              },
+              "CodeSha256": "exKDHdbgqOk+QsE3m0tK1I7uj1r1+DnbmRrI3LHGnVw=",
+              "Description": "POST/washer-login"
+            }
+          },
+          "AuthorizerFnLambdaVersion67J484vNjKzXq0ID2TKS7ZSeB4Kc3NZydVX35ox68": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "AuthorizerFnLambdaFunction"
+              },
+              "CodeSha256": "exKDHdbgqOk+QsE3m0tK1I7uj1r1+DnbmRrI3LHGnVw="
+            }
+          },
+          "ImageDashuploadLambdaVersion7Taf1wpW2mf4vSQCPfM3po9fBo13jAjRwSWD4YZA": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ImageDashuploadLambdaFunction"
+              },
+              "CodeSha256": "exKDHdbgqOk+QsE3m0tK1I7uj1r1+DnbmRrI3LHGnVw=",
+              "Description": "POST/image-upload"
+            }
+          },
+          "ApiGatewayRestApi": {
+            "Type": "AWS::ApiGateway::RestApi",
+            "Properties": {
+              "Name": "dev-car-washer",
+              "EndpointConfiguration": {
+                "Types": [
+                  "REGIONAL"
+                ]
+              },
+              "Policy": ""
+            }
+          },
+          "ApiGatewayResourceWasher": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Fn::GetAtt": [
+                  "ApiGatewayRestApi",
+                  "RootResourceId"
+                ]
+              },
+              "PathPart": "washer",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceWasherDashlogin": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Fn::GetAtt": [
+                  "ApiGatewayRestApi",
+                  "RootResourceId"
+                ]
+              },
+              "PathPart": "washer-login",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceUpload": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Fn::GetAtt": [
+                  "ApiGatewayRestApi",
+                  "RootResourceId"
+                ]
+              },
+              "PathPart": "upload",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayResourceUploadFolderVar": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Ref": "ApiGatewayResourceUpload"
+              },
+              "PathPart": "{folder}",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodWasherOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": "#set($origin = $input.params(\"Origin\"))\n#if($origin == \"\") #set($origin = $input.params(\"origin\")) #end\n#if($origin.matches(\".+\")) #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin) #end"
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceWasher"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodWasherDashloginOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": "#set($origin = $input.params(\"Origin\"))\n#if($origin == \"\") #set($origin = $input.params(\"origin\")) #end\n#if($origin.matches(\".+\")) #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin) #end"
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceWasherDashlogin"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodUploadFolderVarOptions": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "AuthorizationType": "NONE",
+              "HttpMethod": "OPTIONS",
+              "MethodResponses": [
+                {
+                  "StatusCode": "200",
+                  "ResponseParameters": {
+                    "method.response.header.Access-Control-Allow-Origin": true,
+                    "method.response.header.Access-Control-Allow-Headers": true,
+                    "method.response.header.Access-Control-Allow-Methods": true
+                  },
+                  "ResponseModels": {}
+                }
+              ],
+              "RequestParameters": {},
+              "Integration": {
+                "Type": "MOCK",
+                "RequestTemplates": {
+                  "application/json": "{statusCode:200}"
+                },
+                "ContentHandling": "CONVERT_TO_TEXT",
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": "200",
+                    "ResponseParameters": {
+                      "method.response.header.Access-Control-Allow-Origin": "'*'",
+                      "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
+                      "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+                    },
+                    "ResponseTemplates": {
+                      "application/json": "#set($origin = $input.params(\"Origin\"))\n#if($origin == \"\") #set($origin = $input.params(\"origin\")) #end\n#if($origin.matches(\".+\")) #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin) #end"
+                    }
+                  }
+                ]
+              },
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceUploadFolderVar"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodWasherPost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceWasher"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "AddDashwasherLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            }
+          },
+          "ApiGatewayMethodWasherDashloginPost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceWasherDashlogin"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "WasherDashloginLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            }
+          },
+          "ApiGatewayMethodUploadFolderVarPost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceUploadFolderVar"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "CUSTOM",
+              "AuthorizerId": {
+                "Ref": "AuthorizerFnApiGatewayAuthorizer"
+              },
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "ImageDashuploadLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": "AuthorizerFnApiGatewayAuthorizer"
+          },
+          "AuthorizerFnApiGatewayAuthorizer": {
+            "Type": "AWS::ApiGateway::Authorizer",
+            "Properties": {
+              "AuthorizerResultTtlInSeconds": 300,
+              "IdentitySource": "method.request.header.Authorization",
+              "Name": "authorizerFn",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "AuthorizerUri": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":apigateway:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":lambda:path/2015-03-31/functions/",
+                    {
+                      "Fn::GetAtt": [
+                        "AuthorizerFnLambdaFunction",
+                        "Arn"
+                      ]
+                    },
+                    "/invocations"
+                  ]
+                ]
+              },
+              "Type": "TOKEN"
+            }
+          },
+          "ApiGatewayDeployment1624948993563": {
+            "Type": "AWS::ApiGateway::Deployment",
+            "Properties": {
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "StageName": "dev"
+            },
+            "DependsOn": [
+              "ApiGatewayMethodWasherOptions",
+              "ApiGatewayMethodWasherDashloginOptions",
+              "ApiGatewayMethodUploadFolderVarOptions",
+              "ApiGatewayMethodWasherPost",
+              "ApiGatewayMethodWasherDashloginPost",
+              "ApiGatewayMethodUploadFolderVarPost"
+            ]
+          },
+          "AddDashwasherLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AddDashwasherLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "WasherDashloginLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "WasherDashloginLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "ImageDashuploadLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "ImageDashuploadLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "AuthorizerFnLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AuthorizerFnLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
           "UserTable": {
             "Type": "AWS::DynamoDB::Table",
             "DeletionPolicy": "Retain",
@@ -140,6 +957,12 @@
                 "WriteCapacityUnits": 1
               }
             }
+          },
+          "S3Assets": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+              "BucketName": "car-washer"
+            }
           }
         },
         "Outputs": {
@@ -149,6 +972,68 @@
             },
             "Export": {
               "Name": "sls-car-washer-dev-ServerlessDeploymentBucketName"
+            }
+          },
+          "AddDashwasherLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "AddDashwasherLambdaVersionAXS5V79AKgQ5lYBgYvlephdqsJZdPbSiZDwf7Ts"
+            },
+            "Export": {
+              "Name": "sls-car-washer-dev-AddDashwasherLambdaFunctionQualifiedArn"
+            }
+          },
+          "WasherDashloginLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "WasherDashloginLambdaVersionz7Az4KIZtcQW01xzLGF6DM5NwUCHlUy34BDaGwaevA"
+            },
+            "Export": {
+              "Name": "sls-car-washer-dev-WasherDashloginLambdaFunctionQualifiedArn"
+            }
+          },
+          "AuthorizerFnLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "AuthorizerFnLambdaVersion67J484vNjKzXq0ID2TKS7ZSeB4Kc3NZydVX35ox68"
+            },
+            "Export": {
+              "Name": "sls-car-washer-dev-AuthorizerFnLambdaFunctionQualifiedArn"
+            }
+          },
+          "ImageDashuploadLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "ImageDashuploadLambdaVersion7Taf1wpW2mf4vSQCPfM3po9fBo13jAjRwSWD4YZA"
+            },
+            "Export": {
+              "Name": "sls-car-washer-dev-ImageDashuploadLambdaFunctionQualifiedArn"
+            }
+          },
+          "ServiceEndpoint": {
+            "Description": "URL of the service endpoint",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  "https://",
+                  {
+                    "Ref": "ApiGatewayRestApi"
+                  },
+                  ".execute-api.",
+                  {
+                    "Ref": "AWS::Region"
+                  },
+                  ".",
+                  {
+                    "Ref": "AWS::URLSuffix"
+                  },
+                  "/dev"
+                ]
+              ]
+            },
+            "Export": {
+              "Name": "sls-car-washer-dev-ServiceEndpoint"
             }
           }
         }
@@ -234,13 +1119,154 @@
             }
           }
         }
-      }
+      },
+      "vpc": {}
     },
     "plugins": [
       "serverless-offline"
     ],
     "pluginsData": {},
-    "functions": {},
+    "functions": {
+      "add-washer": {
+        "handler": "services/add-washer.handler",
+        "description": "POST/washer-registration",
+        "events": [
+          {
+            "http": {
+              "path": "washer",
+              "method": "post",
+              "cors": {
+                "origins": [
+                  "*"
+                ],
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "car-washer-dev-add-washer",
+        "package": {},
+        "memory": 256,
+        "timeout": 10,
+        "runtime": "nodejs12.x",
+        "vpc": {},
+        "versionLogicalId": "AddDashwasherLambdaVersionAXS5V79AKgQ5lYBgYvlephdqsJZdPbSiZDwf7Ts"
+      },
+      "washer-login": {
+        "handler": "services/washer-login.handler",
+        "description": "POST/washer-login",
+        "events": [
+          {
+            "http": {
+              "path": "washer-login",
+              "method": "post",
+              "cors": {
+                "origins": [
+                  "*"
+                ],
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent"
+                ],
+                "allowCredentials": false
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "car-washer-dev-washer-login",
+        "package": {},
+        "memory": 256,
+        "timeout": 10,
+        "runtime": "nodejs12.x",
+        "vpc": {},
+        "versionLogicalId": "WasherDashloginLambdaVersionz7Az4KIZtcQW01xzLGF6DM5NwUCHlUy34BDaGwaevA"
+      },
+      "authorizerFn": {
+        "handler": "services/jwt-authorizer.handler",
+        "events": [],
+        "name": "car-washer-dev-authorizerFn",
+        "package": {},
+        "memory": 256,
+        "timeout": 10,
+        "runtime": "nodejs12.x",
+        "vpc": {},
+        "versionLogicalId": "AuthorizerFnLambdaVersion67J484vNjKzXq0ID2TKS7ZSeB4Kc3NZydVX35ox68"
+      },
+      "image-upload": {
+        "handler": "services/image-upload.handler",
+        "description": "POST/image-upload",
+        "events": [
+          {
+            "http": {
+              "path": "upload/{folder}",
+              "method": "post",
+              "cors": {
+                "origins": [
+                  "*"
+                ],
+                "origin": "*",
+                "methods": [
+                  "OPTIONS",
+                  "POST"
+                ],
+                "headers": [
+                  "Content-Type",
+                  "X-Amz-Date",
+                  "Authorization",
+                  "X-Api-Key",
+                  "X-Amz-Security-Token",
+                  "X-Amz-User-Agent"
+                ],
+                "allowCredentials": false
+              },
+              "authorizer": {
+                "type": "TOKEN",
+                "name": "authorizerFn",
+                "arn": {
+                  "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AuthorizerFnLambdaPermissionApiGateway\"][\"Properties\"][\"FunctionName\"]"
+                },
+                "managedExternally": false,
+                "resultTtlInSeconds": 300,
+                "identitySource": "method.request.header.Authorization",
+                "claims": []
+              },
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "car-washer-dev-image-upload",
+        "package": {},
+        "memory": 256,
+        "timeout": 10,
+        "runtime": "nodejs12.x",
+        "vpc": {},
+        "versionLogicalId": "ImageDashuploadLambdaVersion7Taf1wpW2mf4vSQCPfM3po9fBo13jAjRwSWD4YZA"
+      }
+    },
     "resources": {
       "Resources": {
         "UserTable": {
@@ -273,6 +1299,12 @@
               "WriteCapacityUnits": 1
             }
           }
+        },
+        "S3Assets": {
+          "Type": "AWS::S3::Bucket",
+          "Properties": {
+            "BucketName": "car-washer"
+          }
         }
       },
       "Outputs": {}
@@ -292,13 +1324,17 @@
       },
       "resources": {
         "$ref": "$[\"service\"][\"resources\"]"
+      },
+      "functions": {
+        "$ref": "$[\"service\"][\"functions\"]"
       }
     },
     "layers": {},
-    "isDashboardMonitoringPreconfigured": false
+    "isDashboardMonitoringPreconfigured": false,
+    "artifact": "D:\\STUDY_FOLDER\\CAR_WASH\\.serverless\\car-washer.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/car-washer/dev/1624855393640-2021-06-28T04:43:13.640Z",
-    "artifact": ""
+    "artifactDirectoryName": "serverless/car-washer/dev/1624949008582-2021-06-29T06:43:28.582Z",
+    "artifact": "car-washer.zip"
   }
 }

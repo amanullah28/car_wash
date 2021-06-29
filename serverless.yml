@@ -28,6 +28,8 @@ provider:
   endpointType: regional
   environment:
     USER_TABLE: user
+    IMAGE_BUCKET: car-washer
+    JWT_SECRET: secretttt
     # USER_TABLE: ${self:service}-${opt:stage, self:provider.stage}
 
   iamRoleStatements:
@@ -40,11 +42,12 @@ provider:
         - dynamodb:UpdateItem
         - dynamodb:DeleteItem
         - dynamodb:Query
+        - "s3:*"
 
       Resource: 
-        Fn::GetAtt:
-          - UserTable
-          - Arn
+          - arn:aws:dynamodb:us-east-1:*:*
+          - arn:aws:lambda:us-east-1:*:*
+          - arn:aws:s3:::${self:provider.environment.IMAGE_BUCKET}/*
 
 resources:
   Resources:
@@ -66,6 +69,12 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
+
+
+    S3Assets:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: car-washer
 
 functions:
   add-washer:
@@ -92,6 +101,25 @@ functions:
           #   origin: '*'
           #   headers: ${self:custom.allowedHeaders}
 
+  authorizerFn:
+    handler: services/jwt-authorizer.handler
+
+  image-upload:
+    handler: services/image-upload.handler
+    description: POST/image-upload
+    events: 
+      - http:
+          path: upload/{folder}
+          method: post
+          cors: true
+            # cors:
+            #origin: '*'
+            #headers: ${self:custom.allowedHeaders}
+          authorizer:
+            type: TOKEN
+            name: authorizerFn
+            identitySource: method.request.header.Authorization
+            resultTtlInSeconds: 0
     
 
 
