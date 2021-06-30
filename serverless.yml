@@ -17,9 +17,12 @@ provider:
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
             - lambda:InvokeFunction
+            - sns:Publish
+            - sns:SetSMSAttributes
           Resource:
             - arn:aws:dynamodb:us-east-1:*:*
             - arn:aws:lambda:us-east-1:*:*
+            - "*"
   stage: dev
   region: us-east-1
   environment:
@@ -47,11 +50,35 @@ functions:
           path: profile
           method: POST
           authorizer: authorize
+          cors: true
+  addCars:
+    handler: handlers/car.addCar
+    events:
+      - http:
+          path: car
+          method: POST
+          authorizer: authorize
+          cors: true
+  listCars:
+    handler: handlers/car.listCar
+    events:
+      - http:
+          path: cars
+          method: GET
+          cors: true
+          authorizer: authorize
+  sendSms:
+    handler: handlers/helper.sendSms
+    events:
+      - http:
+          path: send-sms
+          method: POST
+          cors: true
 resources:
   Resources:
     TodosTable:
       Type: "AWS::DynamoDB::Table"
-      # DeletionPolicy: Retain
+      DeletionPolicy: Retain
       Properties:
         AttributeDefinitions:
           -
@@ -67,7 +94,7 @@ resources:
         TableName: 'users'
     authTokensTable:
       Type: "AWS::DynamoDB::Table"
-      # DeletionPolicy: Retain
+      DeletionPolicy: Retain
       Properties:
         AttributeDefinitions:
           -
@@ -87,3 +114,21 @@ resources:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
         TableName: 'auth-tokens'
+    userCarsTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: plateNumber
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: plateNumber
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: 'user-cars'

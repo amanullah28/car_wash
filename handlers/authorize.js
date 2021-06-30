@@ -12,6 +12,7 @@ const JWTSECRET = process.env.JWT_SECRET;
   */
 module.exports.handler = (event, context, callback) => {
     const token = event.authorizationToken;
+    console.log("token", token)
     try {
         jwt.verify(token, JWTSECRET, (err, user) => {
             if (err) {

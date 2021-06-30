@@ -47,8 +47,10 @@ module.exports.signup = async (event) => {
     TableName: "users",
     Item: {
       id: uuidv4(),
+      fullname: (typeof bodyObj.fullname !== 'undefined') ? bodyObj.fullname : '',
       email: bodyObj.email,
       password: passwordHash,
+      phone: (typeof bodyObj.phone !== 'undefined') ? bodyObj.phone : '',
       createdAt: new Date().getTime(),
       updatedAt: new Date().getTime()
     }
@@ -141,10 +143,49 @@ module.exports.login = async (event) => {
 
 module.exports.updateProfile = async (event) => {
   let userId = await loggedInUserId(event.requestContext);
-  return {
-    statusCode: 200,
-    body: JSON.stringify({
-      message:userId
-    }),
+  let bodyObj = JSON.parse(event.body);
+  if (typeof bodyObj.cardHolder == 'undefined' || typeof bodyObj.cardNumber == 'undefined' ||
+      typeof bodyObj.cardCvv == 'undefined' || typeof bodyObj.cardExpiryMonth == 'undefined' ||
+      typeof bodyObj.cardExpiryYear == 'undefined') {
+        return errorResponse(400, {
+          code: 400,
+          status: 'error',
+          message: "card details are mandatory"
+        });
   }
+  
+  var updateParams = {
+      TableName: "users",
+      Key:{
+          "id": userId
+      },
+      UpdateExpression: `set fullname = :fullname, phone = :phone, updatedAt = :updatedAt, 
+                        cardHolder = :cardHolder, cardNumber = :cardNumber, cardCvv = :cardCvv,
+                        cardExpiryMonth = :cardExpiryMonth, cardExpiryYear = :cardExpiryYear`,
+      ExpressionAttributeValues:{
+          ":fullname": bodyObj.fullname,
+          ":phone": bodyObj.phone,
+          ":updatedAt": new Date().getTime(),
+          ":cardHolder": bodyObj.cardHolder,
+          ":cardNumber": bodyObj.cardNumber,
+          ":cardCvv": bodyObj.cardCvv,
+          ":cardExpiryMonth": bodyObj.cardExpiryMonth,
+          ":cardExpiryYear": bodyObj.cardExpiryYear
+      },
+      ReturnValues:"UPDATED_NEW"
+  };
+  try {
+    var data = await dynamodb.update(updateParams).promise();
+  } catch (error) {
+    return errorResponse(400, {
+      code: 400,
+      status: 'error',
+      message: error
+    });
+  }
+  return successResponse({
+    code: 200,
+    status: 'success',
+    message: "Updated successfully"
+  });
 }
