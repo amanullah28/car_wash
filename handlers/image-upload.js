@@ -1,6 +1,7 @@
+'use strict'
+
 const util = require('../helper/util');
 const AWS = require('aws-sdk');
-const { request } = require('http');
 AWS.config.update({region: 'us-east-1'});
 const DocClient = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();

@@ -1,125 +1,213 @@
-service: car-washer
+service: car-wash
 frameworkVersion: '2'
-
-plugins: 
-  - serverless-offline
-
-# custom:
-#   allowedHeaders:
-#     - Accept
-#     - Content-Type
-#     - Content-Length
-#     - Authorization
-#     - X-Amz-Date
-#     - X-Api-Key
-#     - X-Amz-Security-Token
-#     - X-Amz-User-Agent
-#     - app_user_id
-#     - app_user_name
-
 provider:
   name: aws
   runtime: nodejs12.x
   lambdaHashingVersion: 20201221
-  region: us-east-1
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:DescribeTable
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - lambda:InvokeFunction
+            - sns:Publish
+            - sns:SetSMSAttributes
+            - "s3:*"
+          Resource:
+            - arn:aws:dynamodb:us-east-1:*:*
+            - arn:aws:lambda:us-east-1:*:*
+            - "*"
+            - arn:aws:s3:::${self:provider.environment.IMAGE_BUCKET}/*
   stage: dev
-  memorySize: 256
-  timeout: 10
-  endpointType: regional
+  region: us-east-1
   environment:
-    USER_TABLE: user
-    IMAGE_BUCKET: car-washer
-    JWT_SECRET: secretttt
-    # USER_TABLE: ${self:service}-${opt:stage, self:provider.stage}
-
-  iamRoleStatements:
-    - Effect: Allow
-      Action: 
-        - dynamodb:Query
-        - dynamodb:Scan
-        - dynamodb:GetItem
-        - dynamodb:PutItem
-        - dynamodb:UpdateItem
-        - dynamodb:DeleteItem
-        - dynamodb:Query
-        - "s3:*"
-
-      Resource: 
-          - arn:aws:dynamodb:us-east-1:*:*
-          - arn:aws:lambda:us-east-1:*:*
-          - arn:aws:s3:::${self:provider.environment.IMAGE_BUCKET}/*
-
+    JWT_SECRET: secretkey
+    USER_TABLE: users
+    IMAGE_BUCKET: car-wash-uploads
+    WASH_PACKAGE_TABLE: wash-packages
+    BOOKING_TABLE: bookings
+functions:
+  customerSignup:
+    handler: handlers/user.signup
+    events:
+      - http:
+          path: customer/signup
+          method: POST
+          cors: true
+  washerSignup:
+    handler: handlers/user.signup
+    events:
+      - http:
+          path: washer/signup
+          method: POST
+          cors: true
+  login:
+    handler: handlers/user.login
+    events:
+      - http:
+          path: user/login
+          method: POST
+  authorize:
+    handler: handlers/authorize.handler
+  updateProfile:
+    handler: handlers/user.updateProfile
+    events:
+      - http:
+          path: profile
+          method: POST
+          authorizer: authorize
+          cors: true
+  addCars:
+    handler: handlers/car.addCar
+    events:
+      - http:
+          path: car
+          method: POST
+          authorizer: authorize
+          cors: true
+  listCars:
+    handler: handlers/car.listCar
+    events:
+      - http:
+          path: cars
+          method: GET
+          cors: true
+          authorizer: authorize
+  sendSms:
+    handler: handlers/helper.sendSms
+    events:
+      - http:
+          path: send-sms
+          method: POST
+          cors: true
+  imageUpload:
+    handler: handlers/helper.imageUpload
+    events:
+      - http:
+          path: upload/{folder}
+          method: POST
+          cors: true
+  addWashPackage:
+    handler: handlers/washPackage.add
+    events:
+      - http:
+          path: wash-package
+          method: POST
+          cors: true
+          authorizer: authorize
+  listWashPackage:
+    handler: handlers/washPackage.listPackages
+    events:
+      - http:
+          path: wash-package
+          method: GET
+          authorizer: authorize
+  bookWashing:
+    handler: handlers/booking.bookWash
+    events:
+      - http:
+          path: wash-booking
+          method: POST
+          authorizer: authorize
+          cors: true
 resources:
   Resources:
-    UserTable:
-      Type: AWS::DynamoDB::Table
+    TodosTable:
+      Type: "AWS::DynamoDB::Table"
       DeletionPolicy: Retain
       Properties:
-        TableName: ${self:provider.environment.USER_TABLE}
         AttributeDefinitions:
-          - AttributeName: userId
+          -
+            AttributeName: id
             AttributeType: S
-          - AttributeName: createdAt
-            AttributeType: N
         KeySchema:
-          - AttributeName: userId
+          -
+            AttributeName: id
             KeyType: HASH
-          - AttributeName: createdAt
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: 'users'
+    authTokensTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: userId
+            AttributeType: S
+          - 
+            AttributeName: token
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: token
+            KeyType: HASH
+          -
+            AttributeName: userId
             KeyType: RANGE
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
-
-
-    S3Assets:
-      Type: AWS::S3::Bucket
+        TableName: 'auth-tokens'
+    userCarsTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
       Properties:
-        BucketName: car-washer
-
-functions:
-  add-washer:
-    handler: services/add-washer.handler
-    description: POST/washer-registration
-    events: 
-      - http: 
-          path: washer
-          method: post
-          cors: true
-          # cors:
-          #   origin: '*'
-          #   headers: ${self:custom.allowedHeaders}
-
-  washer-login:
-    handler: services/washer-login.handler
-    description: POST/washer-login
-    events: 
-      - http: 
-          path: washer-login
-          method: post
-          cors: true
-          # cors:
-          #   origin: '*'
-          #   headers: ${self:custom.allowedHeaders}
-
-  authorizerFn:
-    handler: services/jwt-authorizer.handler
-
-  image-upload:
-    handler: services/image-upload.handler
-    description: POST/image-upload
-    events: 
-      - http:
-          path: upload/{folder}
-          method: post
-          cors: true
-            # cors:
-            #origin: '*'
-            #headers: ${self:custom.allowedHeaders}
-          authorizer:
-            type: TOKEN
-            name: authorizerFn
-            identitySource: method.request.header.Authorization
-            resultTtlInSeconds: 0
-    
-
-
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: plateNumber
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: plateNumber
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: 'user-cars'
+    washPackagesTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: title
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: title
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: 'wash-packages'
+    bookingsTable:
+      Type: "AWS::DynamoDB::Table"
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: packageId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: packageId
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: 'bookings'
